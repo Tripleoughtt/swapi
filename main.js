@@ -4,53 +4,77 @@ var myapp = angular.module('myapp', ["ui.router", "services"])
 
 myapp.controller("ResidentCtrl", ['$scope', '$http', '$stateParams', 'getAndStoreCharacter' , function($scope, $http, $stateParams, getAndStoreCharacter) {
   var url = ("http://swapi.co/api/people/" + $stateParams.id + "/?format=json")
-    getAndStoreCharacter.getCharacter(url);
+    getAndStoreCharacter.getCharacter(url).then(data => {
+      $scope.character = getAndStoreCharacter.currChar;
+    });
 }]);
 
-
-
-myapp.controller("PlanetCtrl", [ '$scope', '$http', 'getAndStoreCharacter', function($scope, $http, getAndStoreCharacter) {
-
-  $scope.planets = [];
-  $http.get("http://swapi.co/api/planets/?format=json").then(resp => {
-    $scope.planets = resp.data.results.map(planet => {
+myapp.run(function(getAndStoreCharacter,$rootScope, planetFactory){
+   planetFactory.getPlanets.then(data => {
+     console.log(data)
+   $rootScope.planets = planetFactory.planetData;
+    console.log($rootScope.planets)
+    $rootScope.planets = $rootScope.planets.map(planet => {
+      console.log('Planet', planet);
       planet.residents = planet.residents.map(resident => {
-        var resident = { url: resident };
+        console.log(resident)
+        var resident = {url : resident};
+        console.log(resident.url)
         resident.id = resident.url.match(/\d+/)[0];
-        var charNames = getAndStoreCharacter.characterNames
-          if(charNames){
-            charNames.forEach(function(input){
-              if (resident.url === input.charUrl){
-                resident.name = input.charName;
-                console.log(resident)
-              }
-            })
-          }
+        var charNames = getAndStoreCharacter.characterNames; 
+          charNames.forEach(input => {
+            if(resident.url === input.charUrl){
+              resident.name = input.charName;
+              console.log(resident);
+            }
+          })
+        console.log(resident)
+        return resident;
+        })
+        return planet;
+      })
+    })
+});
+
+myapp.controller("PlanetCtrl", [ '$rootScope','$scope', '$q', '$http', 'planetFactory', 'getAndStoreCharacter', function($rootScope,$scope, $q, $http, planetFactory, getAndStoreCharacter) {
+
+  $scope.$watchCollection(function(){
+    return planetFactory.planetData;
+  }, function(newval, oldval){ 
+    $scope.planets = $rootScope.planets
+    $scope.planets = newval.map(planet => {
+      planet.residents = planet.residents.map(resident => {
+        var charNames = getAndStoreCharacter.characterNames; 
+          charNames.forEach(input => {
+            if(resident.url === input.charUrl){
+              resident.name = input.charName;
+              console.log(resident);
+            }
+          })
         return resident;
       })
       return planet;
-    })
-
-  }).catch(error => console.error(error.status));
+    });
+  })
 }]);
 
 
-myapp.config(function($stateProvider, $urlRouterProvider){
+  myapp.config(function($stateProvider, $urlRouterProvider){
 
-  $urlRouterProvider.otherwise("/planets")
+    $urlRouterProvider.otherwise("/planets")
 
-    $stateProvider
-    .state('planets', {
-      url: "/planets",
-      templateUrl: "planets.html",
-      controller: "PlanetCtrl"
+      $stateProvider
+      .state('planets', {
+        url: "/planets",
+        templateUrl: "planets.html",
+        controller: "PlanetCtrl"
+      })
+    .state('resident', {
+      url: "/resident/:id",
+      templateUrl: "resident.html",
+      controller: "ResidentCtrl"
     })
-  .state('resident', {
-    url: "/resident/:id",
-    templateUrl: "resident.html",
-    controller: "ResidentCtrl"
-  })
-});
+  });
 
 
 
